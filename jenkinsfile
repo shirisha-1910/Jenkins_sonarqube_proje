@@ -39,7 +39,8 @@ pipeline {
             steps {
                 script {
                     // Build Docker image from the Dockerfile in the repository
-                    sh 'docker build -t retail'
+                    // Use the full image name with the registry URL
+                    sh "docker build -t ${DOCKER_IMAGE_NAME}:latest ."
                 }
             }
         }
@@ -48,12 +49,12 @@ pipeline {
             steps {
                 script {
                     // Log in to DockerHub using Jenkins credentials
-                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS, usernameVariable: 'sirishassss', passwordVariable: 'Docker@18')]) {
-                        sh "docker login -u sirishassss -p Docker@18 https://hub.docker.com/u/sirishassss"
+                    withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} ${DOCKER_REGISTRY}"
                     }
 
                     // Push the Docker image to DockerHub
-                    sh "docker push retail"
+                    sh "docker push ${DOCKER_IMAGE_NAME}:latest"
                 }
             }
         }
@@ -62,7 +63,7 @@ pipeline {
             steps {
                 script {
                     // Optional: Clean up intermediate Docker images and containers
-                    sh 'docker rmi retail'
+                    sh "docker rmi ${DOCKER_IMAGE_NAME}:latest"
                 }
             }
         }
