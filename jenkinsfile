@@ -26,8 +26,7 @@ pipeline {
                         -Dsonar.projectName=retail-store-jenkins \
                         -Dsonar.sources=src/main/java \
                         -Dsonar.tests=src/test/java \
-                        -Dsonar.projectVersion=4.6.0.2311 \
-                        -Dsonar.host.url=http://localhost:9000
+                        -Dsonar.projectVersion=4.6.0.2311
                         '''
                     }
                 }
@@ -40,8 +39,13 @@ pipeline {
                     // Get the current commit hash to tag the Docker image
                     def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
 
-                    // Use Docker Pipeline plugin's docker.build method to build the image
-                    docker.build("${DOCKER_IMAGE_NAME}:${commitHash}")
+                    // Check if Dockerfile exists before building
+                    if (fileExists('Dockerfile')) {
+                        // Build the Docker image
+                        docker.build("${DOCKER_IMAGE_NAME}:${commitHash}")
+                    } else {
+                        error "Dockerfile not found!"
+                    }
                 }
             }
         }
@@ -67,7 +71,7 @@ pipeline {
                 script {
                     // Optional: Clean up intermediate Docker images
                     def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-                    sh "docker rmi ${DOCKER_IMAGE_NAME}:${commitHash}"
+                    sh "docker rmi ${DOCKER_IMAGE_NAME}:${commitHash} || true"
                 }
             }
         }
@@ -76,6 +80,7 @@ pipeline {
     post {
         always {
             // Clean up any resources if necessary
+            echo "Cleaning up..."
         }
         success {
             echo 'Pipeline completed successfully!'
