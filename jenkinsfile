@@ -2,17 +2,16 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_NAME = 'sirishassss/retail'  // Docker image name (replace with your username and image name)
-        DOCKER_REGISTRY = 'https://hub.docker.com/u/sirishassss'  // DockerHub registry URL
-        DOCKER_CREDENTIALS = '2be57122-9b3c-4daf-9649-c97dbe6395cb'  // Jenkins credentials ID for DockerHub login (replace with your actual Jenkins credentials ID)
-        SONARQUBE_SERVER = 'retail-token'  // SonarQube server name as configured in Jenkins (replace with your SonarQube server)
+        DOCKER_IMAGE_NAME = 'sirishassss/retail'  // Docker image name
+        DOCKER_CREDENTIALS = '2be57122-9b3c-4daf-9649-c97dbe6395cb'  // Jenkins credentials ID for DockerHub login
+        SONARQUBE_SERVER = 'retail-token'  // SonarQube server name as configured in Jenkins
     }
 
     stages {
         stage('Checkout') {
             steps {
                 // Checkout the latest code from GitHub
-                git branch: 'main', url: 'https://github.com/shirisha-1910/Jenkins_sonarqube_proje.git'  // Replace with your GitHub repository URL
+                git branch: 'main', url: 'https://github.com/shirisha-1910/Jenkins_sonarqube_proje.git'
             }
         }
 
@@ -38,9 +37,11 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build Docker image from the Dockerfile in the repository
-                    // Use the full image name with the registry URL
-                    sh "docker build -t ${DOCKER_IMAGE_NAME}:latest ."
+                    // Get the current commit hash to tag the Docker image
+                    def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+
+                    // Use Docker Pipeline plugin's docker.build method to build the image
+                    docker.build("${DOCKER_IMAGE_NAME}:${commitHash}")
                 }
             }
         }
@@ -48,13 +49,15 @@ pipeline {
         stage('Push Docker Image to DockerHub') {
             steps {
                 script {
-                    // Log in to DockerHub using Jenkins credentials
+                    // Log in to DockerHub using Jenkins credentials and push the image
                     withCredentials([usernamePassword(credentialsId: DOCKER_CREDENTIALS, usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh "docker login -u ${DOCKER_USERNAME} -p ${DOCKER_PASSWORD} ${DOCKER_REGISTRY}"
+                        // Docker login
+                        docker.withRegistry('https://hub.docker.com', "${DOCKER_CREDENTIALS}") {
+                            def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                            // Push the Docker image to DockerHub
+                            docker.image("${DOCKER_IMAGE_NAME}:${commitHash}").push()
+                        }
                     }
-
-                    // Push the Docker image to DockerHub
-                    sh "docker push ${DOCKER_IMAGE_NAME}:latest"
                 }
             }
         }
@@ -62,8 +65,9 @@ pipeline {
         stage('Clean Up') {
             steps {
                 script {
-                    // Optional: Clean up intermediate Docker images and containers
-                    sh "docker rmi ${DOCKER_IMAGE_NAME}:latest"
+                    // Optional: Clean up intermediate Docker images
+                    def commitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                    sh "docker rmi ${DOCKER_IMAGE_NAME}:${commitHash}"
                 }
             }
         }
